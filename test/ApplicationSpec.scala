@@ -26,5 +26,9 @@ class ApplicationSpec extends Specification {
       contentType(home) must beSome.which(_ == "text/html")
       contentAsString(home) must contain ("Hello Play Framework")
     }
+
+    "search" in new WithApplication{
+      route(FakeRequest(GET, "/search")) must beNone
+    }
   }
 }
