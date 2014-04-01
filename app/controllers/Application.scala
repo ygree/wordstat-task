@@ -2,6 +2,7 @@ package controllers
 
 import play.api.mvc.{Action, Controller}
 import play.api.libs.ws.WS
+import play.api.libs.json._
 
 object Application extends Controller {
   import scala.concurrent.ExecutionContext.Implicits.global
@@ -29,7 +30,10 @@ object Application extends Controller {
             //TODO should also keep only two levels of domain name like "xxx.xx"
           }
 
-          val result = links.mkString("\n")
+          val statistics = links groupBy identity map { case (k, v) => k -> v.size }
+          val json = Json.toJson(statistics)
+          val result = Json.prettyPrint(json)
+
           Ok("ok!\n"+result)
       }
       f
