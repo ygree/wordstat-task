@@ -35,7 +35,7 @@ object Application extends Controller {
       val f = WS.url("http://blogs.yandex.ru/search.rss?text=scala&numdoc=2").get() map {
         response =>
           val linksTags = response.xml \\ "rss" \ "channel" \\ "item" \ "link"
-          val links = linksTags map (_.text) map extractSecondLevelDomainNamek
+          val links = linksTags map (_.text) map extractSecondLevelDomainName
 
           val statistics = links groupBy identity map { case (k, v) => k -> v.size }
           val json = Json.toJson(statistics)
