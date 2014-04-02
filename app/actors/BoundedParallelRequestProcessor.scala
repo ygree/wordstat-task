@@ -5,7 +5,7 @@ import scala.collection.immutable.Queue
 import scala.concurrent.Future
 import scala.reflect.ClassTag
 
-abstract class BoundedParallelRequestProcessor[T: ClassTag] extends Actor { //with PipeToSupport {
+abstract class BoundedParallelRequestProcessor[T: ClassTag] extends Actor {
 
   import context.dispatcher
 
@@ -45,6 +45,5 @@ abstract class BoundedParallelRequestProcessor[T: ClassTag] extends Actor { //wi
     future onComplete {
       case _ => self ! RequestFinished
     }
-//    future pipeTo sender
   }
 }

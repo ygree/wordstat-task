@@ -6,7 +6,7 @@ import play.api.libs.json._
 import java.net.URI
 import play.api.libs.concurrent.Akka
 import akka.actor.Props
-import actors.RequestProcessor
+import actors.{ResponseAggregator, RequestProcessor}
 import akka.pattern.ask
 import scala.concurrent.duration.Duration
 
@@ -15,7 +15,7 @@ object Application extends Controller {
 
   import play.api.Play.current
 
-  val myActor = Akka.system.actorOf(Props[RequestProcessor], "myactor")
+  val requestProcessor = Akka.system.actorOf(Props[RequestProcessor], "requestprocessor")
 
   def index = Action {
     Ok(views.html.index("Hello Play Framework"))
@@ -53,10 +53,10 @@ object Application extends Controller {
       f
     }
 
-  def search = Action.async { request =>
+  def search2 = Action.async { request =>
     import RequestProcessor._
     //TODO get keywords from request
-    (myActor ? Get("scala"))(Duration(5, "sec")).mapTo[Response] map { case Response(links) =>
+    (requestProcessor ? Get("scala"))(Duration(5, "sec")).mapTo[Response] map { case Response(links) =>
 
       val sldNames = links map extractSecondLevelDomainName
       val statistics = sldNames groupBy identity map { case (k, v) => k -> v.size }
@@ -64,6 +64,23 @@ object Application extends Controller {
       val result = Json.prettyPrint(json)
 
       Ok(result)
+    }
+  }
+
+  def search = Action.async { request =>
+    import ResponseAggregator._
+    val keywords = (request.queryString.get("query") getOrElse Nil).toSet
+    val aggregator = Akka.system.actorOf(Props(new ResponseAggregator(requestProcessor)))
+
+    (aggregator ? ResponseAggregator.Request(keywords))(Duration(50, "sec")).mapTo[AggregatedResult] map {
+      case AggregatedResult(links) =>
+
+        val sldNames = links map extractSecondLevelDomainName
+        val statistics = sldNames groupBy identity map { case (k, v) => k -> v.size }
+        val json = Json.toJson(statistics)
+        val result = Json.prettyPrint(json)
+
+        Ok(result)
     }
   }
 }
