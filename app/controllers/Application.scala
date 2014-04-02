@@ -3,6 +3,7 @@ package controllers
 import play.api.mvc.{Action, Controller}
 import play.api.libs.ws.WS
 import play.api.libs.json._
+import java.net.{URL, URI}
 
 object Application extends Controller {
   import scala.concurrent.ExecutionContext.Implicits.global
@@ -18,17 +19,23 @@ object Application extends Controller {
     else Ok(s"Yeahhhh! got: $queries")
   }
 
-  val LinkUrlPattern = """\:\/\/(.+?)[\/|$|\?]""".r
+  def secondLevelDomainNameByHostName(hostname: String): String =
+    hostname.split('.').reverse.toList match {
+      case t :: s :: _ => s"$s.$t"
+      case otherwise   => otherwise.mkString(".")
+    }
+
+  def extractSecondLevelDomainName(uri: String): String = {
+    val hostname = URI.create(uri).getHost
+    secondLevelDomainNameByHostName(hostname)
+  }
 
   def search =
     Action.async { request =>
       val f = WS.url("http://blogs.yandex.ru/search.rss?text=scala&numdoc=2").get() map {
         response =>
           val linksTags = response.xml \\ "rss" \ "channel" \\ "item" \ "link"
-          val links = linksTags map (_.text) flatMap { uri =>
-            LinkUrlPattern.findFirstMatchIn(uri) map (_.group(1))
-            //TODO should also keep only two levels of domain name like "xxx.xx"
-          }
+          val links = linksTags map (_.text) map extractSecondLevelDomainNamek
 
           val statistics = links groupBy identity map { case (k, v) => k -> v.size }
           val json = Json.toJson(statistics)
