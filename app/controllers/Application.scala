@@ -75,7 +75,7 @@ object Application extends Controller {
     (aggregator ? ResponseAggregator.Request(keywords))(Duration(50, "sec")).mapTo[AggregatedResult] map {
       case AggregatedResult(links) =>
 
-        val sldNames = links map extractSecondLevelDomainName
+        val sldNames = links.toSeq map extractSecondLevelDomainName
         val statistics = sldNames groupBy identity map { case (k, v) => k -> v.size }
         val json = Json.toJson(statistics)
         val result = Json.prettyPrint(json)
