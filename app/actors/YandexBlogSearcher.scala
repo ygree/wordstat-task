@@ -8,29 +8,32 @@ import scala.util.{Success, Try}
 import scala.xml.NodeSeq
 import akka.actor.ActorRef
 
-object RequestProcessor {
-  case class Get(keyword: String)
-  case class Response(links: Seq[URI])
+object YandexBlogSearcher {
+  case class Search(keyword: String)
+  case class Found(links: Seq[URI])
 }
 
-class RequestProcessor extends BoundedParallelRequestProcessor[RequestProcessor.Get] with PipeToSupport {
+class YandexBlogSearcher extends BoundedParallelRequestProcessor[YandexBlogSearcher.Search] with PipeToSupport {
 
   import context.dispatcher
-  import RequestProcessor._
+  import YandexBlogSearcher._
 
-  val maxParallelConnections: Int = 1
-  val numberOfDocuments = 1
+  val maxParallelConnections = 1
+  val numberOfDocuments = 10
 
   def linksQueryUrl(keyword: String) = s"http://blogs.yandex.ru/search.rss?text=$keyword&numdoc=$numberOfDocuments"
 
-  def doRequest(request: Get, originalSender: ActorRef): Future[_] = {
+  def doRequest(request: Search, originalSender: ActorRef): Future[_] = {
     val url = linksQueryUrl(request.keyword)
     val future = WS.url(url).get() map { response =>
-      val linksTags = Try(response.xml) map { xml =>
+      val linksTags: NodeSeq = Try(response.xml) map { xml =>
         xml \\ "rss" \ "channel" \\ "item" \ "link"
-      } getOrElse NodeSeq.Empty
+      } getOrElse {
+        NodeSeq.Empty
+      }
+//      val linksTags = response.xml \\ "rss" \ "channel" \\ "item" \ "link"
       val links = linksTags map (_.text) map URI.create
-      Response(links)
+      Found(links)
     }
     future pipeTo originalSender
 //    future onComplete {

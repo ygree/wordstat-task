@@ -5,6 +5,9 @@ import scala.collection.immutable.Queue
 import scala.concurrent.Future
 import scala.reflect.ClassTag
 
+/**
+ * restricts number of parallel requests by putting new request to the queue until it's able to be proceeded
+ */
 abstract class BoundedParallelRequestProcessor[T: ClassTag] extends Actor {
 
   import context.dispatcher
@@ -13,7 +16,7 @@ abstract class BoundedParallelRequestProcessor[T: ClassTag] extends Actor {
 
   def doRequest(request: T, originalSender: ActorRef): Future[_]
 
-  case class RequestFinished(originalSender: ActorRef)
+  private case class RequestFinished(originalSender: ActorRef)
 
   def receive() = readyForRequest(maxParallelConnections)
 
@@ -37,17 +40,13 @@ abstract class BoundedParallelRequestProcessor[T: ClassTag] extends Actor {
     case RequestFinished(originalSender) =>
       println(s">>>>>>>>>request finished, proceed request from the queue")
       val (request, rest) = requests.dequeue
-      //TODO here is not original sender rather this actor itself
       proceedRequest(request, originalSender)
       if (rest.isEmpty) context become receive()
       else context become queueingRequests(rest)
   }
 
-  def proceedRequest(request: T, originalSender: ActorRef): Unit = {
-    val future = doRequest(request, originalSender)
-    val msg = RequestFinished(originalSender)
-    future onComplete {
-      case _ => self ! msg
+  def proceedRequest(request: T, originalSender: ActorRef): Unit =
+    doRequest(request, originalSender) onComplete {
+      case _ => self ! RequestFinished(originalSender)
     }
-  }
 }
