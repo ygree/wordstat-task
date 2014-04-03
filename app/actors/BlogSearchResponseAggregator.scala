@@ -1,6 +1,6 @@
 package actors
 
-import akka.actor.{Props, ReceiveTimeout, ActorRef, Actor}
+import akka.actor._
 import java.net.URI
 import scala.concurrent.duration.Duration
 
@@ -14,7 +14,7 @@ object BlogSearchResponseAggregator {
   )
 }
 
-class BlogSearchResponseAggregator(requestProcessor: ActorRef, timeout: Duration) extends Actor {
+class BlogSearchResponseAggregator(requestProcessor: ActorRef, timeout: Duration) extends Actor with ActorLogging {
 
   import BlogSearchResponseAggregator._
 
@@ -34,10 +34,12 @@ class BlogSearchResponseAggregator(requestProcessor: ActorRef, timeout: Duration
       if (newLeft > 0) context become awaitResults(newLeft, newResult, respondTo)
       else {
         respondTo ! AggregatedResult(newResult)
+        log.info("All responses have come, stop itself")
         context stop self
       }
 
     case ReceiveTimeout =>
+      log.info("Timeout, stop itself")
       context stop self
   }
 }
