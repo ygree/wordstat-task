@@ -31,7 +31,7 @@ object Application extends Controller {
         val json = Json.toJson(prepareSearchResponse(links))
         Ok(Json.prettyPrint(json))
     } fallbackTo {
-      Future successful FailedDependency(
+      Future successful BadGateway(
         "Remote service wasn't able to proceed request before timeout or remote service has failed."
       )
     }
