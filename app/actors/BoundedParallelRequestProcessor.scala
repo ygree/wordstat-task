@@ -1,6 +1,6 @@
 package actors
 
-import akka.actor.{ActorRef, Actor}
+import akka.actor.{ActorLogging, ActorRef, Actor}
 import scala.collection.immutable.Queue
 import scala.concurrent.Future
 import scala.reflect.ClassTag
@@ -8,7 +8,7 @@ import scala.reflect.ClassTag
 /**
  * restricts number of parallel requests by putting new request to the queue until it's able to be proceeded
  */
-abstract class BoundedParallelRequestProcessor[T: ClassTag] extends Actor {
+abstract class BoundedParallelRequestProcessor[T: ClassTag] extends Actor with ActorLogging {
 
   import context.dispatcher
 
@@ -29,7 +29,7 @@ abstract class BoundedParallelRequestProcessor[T: ClassTag] extends Actor {
       else context become queueingRequests(Queue(request))
 
     case RequestFinished(originalSender) =>
-      println(s">>>>>>>>>request finished, await new request")
+      log.info("request finished, await new request")
       context become readyForRequest(allowedConnections + 1)
   }
 
@@ -38,7 +38,7 @@ abstract class BoundedParallelRequestProcessor[T: ClassTag] extends Actor {
       context become queueingRequests(requests enqueue request)
 
     case RequestFinished(originalSender) =>
-      println(s">>>>>>>>>request finished, proceed request from the queue")
+      log.info("request finished, proceed request from the queue")
       val (request, rest) = requests.dequeue
       proceedRequest(request, originalSender)
       if (rest.isEmpty) context become receive()

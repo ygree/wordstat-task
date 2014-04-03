@@ -1,15 +1,20 @@
 package actors
 
-import akka.actor.{ActorRef, Actor}
+import akka.actor.{Props, ReceiveTimeout, ActorRef, Actor}
 import java.net.URI
+import scala.concurrent.duration.Duration
 
 object ResponseAggregator {
 
   case class Request(keywords: Set[String])
   case class AggregatedResult(uris: Set[URI])
+
+  def apply(requestProcessor: ActorRef, timeout: Duration) = Props(
+    new ResponseAggregator(requestProcessor, timeout)
+  )
 }
 
-class ResponseAggregator(requestProcessor: ActorRef) extends Actor {
+class ResponseAggregator(requestProcessor: ActorRef, timeout: Duration) extends Actor {
 
   import ResponseAggregator._
 
@@ -19,20 +24,20 @@ class ResponseAggregator(requestProcessor: ActorRef) extends Actor {
         requestProcessor ! YandexBlogSearcher.Search(keyword)
       }
       context become awaitResults(keywords.size, Set(), sender)
-
-      //TODO timeout!
+      context.setReceiveTimeout(timeout)
   }
 
   def awaitResults(left: Int, result: Set[URI] = Set(), respondTo: ActorRef): Receive = {
     case YandexBlogSearcher.Found(links) =>
       val newLeft = left - 1
       val newResult = result ++ links
-      println(s">>>>>>>>>got response. left: $newLeft")
       if (newLeft > 0) context become awaitResults(newLeft, newResult, respondTo)
       else {
         respondTo ! AggregatedResult(newResult)
         context stop self
       }
-    case x => println(s">>>>>>>>>$x")
+
+    case ReceiveTimeout =>
+      context stop self
   }
 }
