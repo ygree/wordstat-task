@@ -4,19 +4,19 @@ import akka.actor.{Props, ReceiveTimeout, ActorRef, Actor}
 import java.net.URI
 import scala.concurrent.duration.Duration
 
-object ResponseAggregator {
+object BlogSearchResponseAggregator {
 
   case class Request(keywords: Set[String])
   case class AggregatedResult(uris: Set[URI])
 
   def apply(requestProcessor: ActorRef, timeout: Duration) = Props(
-    new ResponseAggregator(requestProcessor, timeout)
+    new BlogSearchResponseAggregator(requestProcessor, timeout)
   )
 }
 
-class ResponseAggregator(requestProcessor: ActorRef, timeout: Duration) extends Actor {
+class BlogSearchResponseAggregator(requestProcessor: ActorRef, timeout: Duration) extends Actor {
 
-  import ResponseAggregator._
+  import BlogSearchResponseAggregator._
 
   def receive = {
     case Request(keywords) =>

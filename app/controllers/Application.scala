@@ -4,8 +4,7 @@ import play.api.mvc.{Action, Controller}
 import play.api.libs.json._
 import java.net.URI
 import play.api.libs.concurrent.Akka
-import akka.actor.Props
-import actors.{ResponseAggregator, YandexBlogSearcher}
+import actors.{BlogSearchResponseAggregator, YandexBlogSearcher}
 import akka.pattern.ask
 import scala.concurrent.duration.Duration
 import scala.concurrent.Future
@@ -23,11 +22,11 @@ object Application extends Controller {
   val blogSearcherTimeout = Duration(10, "sec")
 
   def search = Action.async { request =>
-    import ResponseAggregator._
+    import BlogSearchResponseAggregator._
     val keywords = (request.queryString.get("query") getOrElse Nil).toSet
-    val aggregator = Akka.system.actorOf(ResponseAggregator(blogSearcher, blogSearcherTimeout))
+    val aggregator = Akka.system.actorOf(BlogSearchResponseAggregator(blogSearcher, blogSearcherTimeout))
 
-    (aggregator ? ResponseAggregator.Request(keywords))(blogSearcherTimeout).mapTo[AggregatedResult] map {
+    (aggregator ? BlogSearchResponseAggregator.Request(keywords))(blogSearcherTimeout).mapTo[AggregatedResult] map {
       case AggregatedResult(links) =>
         val json = Json.toJson(prepareSearchResponse(links))
         Ok(Json.prettyPrint(json))
