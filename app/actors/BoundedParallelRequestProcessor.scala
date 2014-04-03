@@ -1,6 +1,6 @@
 package actors
 
-import akka.actor.Actor
+import akka.actor.{ActorRef, Actor}
 import scala.collection.immutable.Queue
 import scala.concurrent.Future
 import scala.reflect.ClassTag
@@ -11,22 +11,22 @@ abstract class BoundedParallelRequestProcessor[T: ClassTag] extends Actor {
 
   def maxParallelConnections: Int
 
-  def doRequest(request: T): Future[_]
+  def doRequest(request: T, originalSender: ActorRef): Future[_]
 
-  case object RequestFinished
+  case class RequestFinished(originalSender: ActorRef)
 
   def receive() = readyForRequest(maxParallelConnections)
 
   def readyForRequest(allowedConnections: Int): Receive = {
     case request: T =>
       if (allowedConnections > 0) {
-        proceedRequest(request)
+        proceedRequest(request, sender)
         context become readyForRequest(allowedConnections - 1)
       }
       else context become queueingRequests(Queue(request))
 
-    case RequestFinished =>
-      println(s"resquest finished a")
+    case RequestFinished(originalSender) =>
+      println(s">>>>>>>>>request finished, await new request")
       context become readyForRequest(allowedConnections + 1)
   }
 
@@ -34,18 +34,20 @@ abstract class BoundedParallelRequestProcessor[T: ClassTag] extends Actor {
     case request: T =>
       context become queueingRequests(requests enqueue request)
 
-    case RequestFinished =>
-      println(s"resquest finished b")
+    case RequestFinished(originalSender) =>
+      println(s">>>>>>>>>request finished, proceed request from the queue")
       val (request, rest) = requests.dequeue
-      proceedRequest(request)
+      //TODO here is not original sender rather this actor itself
+      proceedRequest(request, originalSender)
       if (rest.isEmpty) context become receive()
       else context become queueingRequests(rest)
   }
 
-  def proceedRequest(request: T): Unit = {
-    val future = doRequest(request)
+  def proceedRequest(request: T, originalSender: ActorRef): Unit = {
+    val future = doRequest(request, originalSender)
+    val msg = RequestFinished(originalSender)
     future onComplete {
-      case _ => self ! RequestFinished
+      case _ => self ! msg
     }
   }
 }
