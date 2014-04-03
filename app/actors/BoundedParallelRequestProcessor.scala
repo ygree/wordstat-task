@@ -16,37 +16,37 @@ abstract class BoundedParallelRequestProcessor[T: ClassTag] extends Actor with A
 
   def doRequest(request: T, originalSender: ActorRef): Future[_]
 
-  private case class RequestFinished(originalSender: ActorRef)
+  private case object RequestFinished
 
   def receive() = readyForRequest(maxParallelConnections)
 
   def readyForRequest(allowedConnections: Int): Receive = {
     case request: T =>
       if (allowedConnections > 0) {
-        proceedRequest(request, sender)
+        proceedRequest(sender, request)
         context become readyForRequest(allowedConnections - 1)
       }
-      else context become queueingRequests(Queue(request))
+      else context become queueingRequests(Queue(sender -> request))
 
-    case RequestFinished(originalSender) =>
+    case RequestFinished =>
       log.info("request finished, await new request")
       context become readyForRequest(allowedConnections + 1)
   }
 
-  def queueingRequests(requests: Queue[T]): Receive = {
+  def queueingRequests(requests: Queue[(ActorRef, T)]): Receive = {
     case request: T =>
-      context become queueingRequests(requests enqueue request)
+      context become queueingRequests(requests enqueue (sender -> request))
 
-    case RequestFinished(originalSender) =>
+    case RequestFinished =>
       log.info("request finished, proceed request from the queue")
-      val (request, rest) = requests.dequeue
-      proceedRequest(request, originalSender)
+      val ((originalSender, request), rest) = requests.dequeue
+      proceedRequest(originalSender, request)
       if (rest.isEmpty) context become receive()
       else context become queueingRequests(rest)
   }
 
-  def proceedRequest(request: T, originalSender: ActorRef): Unit =
+  def proceedRequest(originalSender: ActorRef, request: T): Unit =
     doRequest(request, originalSender) onComplete {
-      case _ => self ! RequestFinished(originalSender)
+      case _ => self ! RequestFinished
     }
 }

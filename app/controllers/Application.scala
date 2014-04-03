@@ -24,7 +24,7 @@ object Application extends Controller {
   def search = Action.async { request =>
     import BlogSearchResponseAggregator._
     val keywords = (request.queryString.get("query") getOrElse Nil).toSet
-    val aggregator = Akka.system.actorOf(BlogSearchResponseAggregator(blogSearcher, blogSearcherTimeout))
+    val aggregator = Akka.system.actorOf(BlogSearchResponseAggregator(blogSearcher, blogSearcherTimeout), "aggregator-"+System.nanoTime())
 
     (aggregator ? BlogSearchResponseAggregator.Request(keywords))(blogSearcherTimeout).mapTo[AggregatedResult] map {
       case AggregatedResult(links) =>
