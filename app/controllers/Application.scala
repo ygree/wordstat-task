@@ -1,3 +1,7 @@
+/*
+* (c) 2014, Gribkov Yury
+* http://linkedin.com/in/ygribkov/
+*/
 package controllers
 
 import play.api.mvc.{Action, Controller}
