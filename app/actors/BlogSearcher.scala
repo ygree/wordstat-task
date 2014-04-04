@@ -8,25 +8,25 @@ import scala.util.Try
 import scala.xml.NodeSeq
 import akka.actor.{Props, ActorLogging, ActorRef}
 
-object YandexBlogSearcher {
+object BlogSearcher {
   case class Search(keyword: String)
   case class Found(links: Seq[URI])
 
   def apply(maxParallelConnections: Int = 2, numberOfDocuments: Int = 10) = Props(
-    new YandexBlogSearcher(
+    new BlogSearcher(
       maxParallelConnections = maxParallelConnections,
       numberOfDocuments = numberOfDocuments
     )
   )
 }
 
-class YandexBlogSearcher(val maxParallelConnections: Int, numberOfDocuments: Int)
-  extends BoundedParallelRequestProcessor[YandexBlogSearcher.Search]
+class BlogSearcher(val maxParallelConnections: Int, numberOfDocuments: Int)
+  extends BoundedParallelRequestProcessor[BlogSearcher.Search]
   with PipeToSupport
   with ActorLogging
 {
   import context.dispatcher
-  import YandexBlogSearcher._
+  import BlogSearcher._
 
   def doRequest(request: Search, originalSender: ActorRef): Future[_] = {
     val url = linksQueryUrl(encodeUrl(request.keyword))

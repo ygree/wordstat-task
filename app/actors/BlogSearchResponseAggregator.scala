@@ -21,14 +21,14 @@ class BlogSearchResponseAggregator(requestProcessor: ActorRef, timeout: Duration
   def receive = {
     case Request(keywords) =>
       keywords foreach { keyword =>
-        requestProcessor ! YandexBlogSearcher.Search(keyword)
+        requestProcessor ! BlogSearcher.Search(keyword)
       }
       context become awaitResults(keywords.size, Set(), sender)
       context.setReceiveTimeout(timeout)
   }
 
   def awaitResults(left: Int, result: Set[URI] = Set(), respondTo: ActorRef): Receive = {
-    case YandexBlogSearcher.Found(links) =>
+    case BlogSearcher.Found(links) =>
       val newLeft = left - 1
       val newResult = result ++ links
       if (newLeft > 0) context become awaitResults(newLeft, newResult, respondTo)
