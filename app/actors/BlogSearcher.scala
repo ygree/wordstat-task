@@ -7,26 +7,31 @@ import akka.pattern.PipeToSupport
 import scala.util.Try
 import scala.xml.NodeSeq
 import akka.actor.{Props, ActorLogging, ActorRef}
+import com.typesafe.config.Config
 
 object BlogSearcher {
   case class Search(keyword: String)
   case class Found(links: Seq[URI])
 
-  def apply(maxParallelConnections: Int = 2, numberOfDocuments: Int = 10) = Props(
-    new BlogSearcher(
-      maxParallelConnections = maxParallelConnections,
-      numberOfDocuments = numberOfDocuments
-    )
-  )
+  def apply(settings: BlogSearcherSettings) = Props(new BlogSearcher(settings))
 }
 
-class BlogSearcher(val maxParallelConnections: Int, numberOfDocuments: Int)
+class BlogSearcherSettings(config: Config) {
+  import config._
+  val maxParallelConnections = getInt("maxParallelConnections")
+  val numberOfDocuments = getInt("numberOfDocuments")
+}
+
+class BlogSearcher(settings: BlogSearcherSettings)
   extends BoundedParallelRequestProcessor[BlogSearcher.Search]
   with PipeToSupport
   with ActorLogging
 {
   import context.dispatcher
   import BlogSearcher._
+
+  def maxParallelConnections = settings.maxParallelConnections
+  def numberOfDocuments = settings.numberOfDocuments
 
   def doRequest(request: Search, originalSender: ActorRef): Future[_] = {
     val url = linksQueryUrl(encodeUrl(request.keyword))

@@ -4,22 +4,27 @@ import play.api.mvc.{Action, Controller}
 import play.api.libs.json._
 import java.net.URI
 import play.api.libs.concurrent.Akka
-import actors.{BlogSearchResponseAggregator, BlogSearcher}
+import actors.{BlogSearcherSettings, BlogSearchResponseAggregator, BlogSearcher}
 import akka.pattern.ask
-import scala.concurrent.duration.Duration
 import scala.concurrent.Future
+import akka.actor.ActorSystem
 
 object Application extends Controller {
   import scala.concurrent.ExecutionContext.Implicits.global
 
   import play.api.Play.current
 
-  val blogSearcher = Akka.system.actorOf(
-    BlogSearcher(maxParallelConnections = 2, numberOfDocuments = 10),
-    "blogsearcher"
-  )
+  class BlogSearcher(system: ActorSystem) {
+    private val config = system.settings.config.getConfig("blogseacher")
+    private val settings = new BlogSearcherSettings(config)
 
-  val blogSearcherTimeout = Duration(10, "sec")
+    val ref = system.actorOf(BlogSearcher(settings), "blogsearcher")
+
+    import scala.concurrent.duration._
+    val timeout = Duration(config.getMilliseconds("timeout"), MILLISECONDS)
+  }
+
+  val blogSearcher = new BlogSearcher(Akka.system)
 
   def search = Action.async { request =>
     val keywords = (request.queryString.get("query") getOrElse Nil).toSet
@@ -28,10 +33,10 @@ object Application extends Controller {
   }
 
   def searchLinksByKeywords(keywords: Set[String]) = {
-    val aggregator = Akka.system.actorOf(BlogSearchResponseAggregator(blogSearcher, blogSearcherTimeout), "aggregator-"+System.nanoTime())
+    val aggregator = Akka.system.actorOf(BlogSearchResponseAggregator(blogSearcher.ref, blogSearcher.timeout), "aggregator-"+System.nanoTime())
     import BlogSearchResponseAggregator._
 
-    (aggregator ? BlogSearchResponseAggregator.Request(keywords))(blogSearcherTimeout).mapTo[AggregatedResult] map {
+    (aggregator ? BlogSearchResponseAggregator.Request(keywords))(blogSearcher.timeout).mapTo[AggregatedResult] map {
       case AggregatedResult(links) =>
         val json = Json.toJson(prepareSearchResponse(links))
         Ok(Json.prettyPrint(json))
