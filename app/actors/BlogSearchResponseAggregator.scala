@@ -34,12 +34,12 @@ class BlogSearchResponseAggregator(requestProcessor: ActorRef, timeout: Duration
       if (newLeft > 0) context become awaitResults(newLeft, newResult, respondTo)
       else {
         respondTo ! AggregatedResult(newResult)
-        log.info("All responses have come, stop itself")
+        log.debug("All responses have come, stop itself")
         context stop self
       }
 
     case ReceiveTimeout =>
-      log.info("Timeout, stop itself")
+      log.debug("Timeout, stop itself")
       context stop self
   }
 }

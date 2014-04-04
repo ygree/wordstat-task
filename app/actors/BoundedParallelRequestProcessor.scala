@@ -29,7 +29,7 @@ abstract class BoundedParallelRequestProcessor[T: ClassTag] extends Actor with A
       else context become queueingRequests(Queue(sender -> request))
 
     case RequestFinished =>
-      log.info("request finished, await new request")
+      log.debug("request finished, await new request")
       context become readyForRequest(allowedConnections + 1)
   }
 
@@ -38,7 +38,7 @@ abstract class BoundedParallelRequestProcessor[T: ClassTag] extends Actor with A
       context become queueingRequests(requests enqueue (sender -> request))
 
     case RequestFinished =>
-      log.info("request finished, proceed request from the queue")
+      log.debug("request finished, proceed request from the queue")
       val ((originalSender, request), rest) = requests.dequeue
       proceedRequest(originalSender, request)
       if (rest.isEmpty) context become receive()
