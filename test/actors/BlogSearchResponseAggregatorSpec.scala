@@ -18,7 +18,7 @@ class BlogSearchResponseAggregatorSpec extends Specification {
   import BlogSearchResponseAggregator._
 
   "BlogSearchResponseAggregator" should {
-    "request links for each keyword, returns aggregated result and terminates" in {
+    "request links for each keyword, return aggregated result and terminate" in {
       val f = new BlogSearchResponseAggregatorFixture(500 milli) {
         val k1 = "k1"
         val k2 = "k2"
